@@ -44,12 +44,16 @@ uint16_t MOBIFLIGHT_MAX_VARS_PER_FRAME = 30;
 // due to the maximum client-data-array-size (SIMCONNECT_CLIENTDATA_MAX_SIZE) of 8kB!
 constexpr uint16_t MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN = 128;
 
+//declare struct Client
+struct Client;
+
 // data struct for dynamically registered SimVars
 struct SimVar {
 	int ID;
 	int Offset;
 	std::string Name;
 	float Value;
+	struct Client * clint;
 };
 
 struct StringSimVar {
@@ -57,6 +61,7 @@ struct StringSimVar {
 	int Offset;
 	std::string Name;
 	std::string Value;
+	struct Client * clint;
 };
 
 // data struct for client accessing SimVars
@@ -309,16 +314,6 @@ StringSimVar* IsDuplicatedStringSimVar(const std::string code) {
 	return nullptr;
 }
 
-//check whether SimVar has already registered in StringSimVars list
-bool IsDuplicatedStringSimVar(const std::string code, Client* client) {
-	for (auto& simVar : client->StringSimVars) {
-		if (simVar.Name == code) {
-			return true;
-		}
-	}
-	return false;
-}
-
 // Register a single Float-SimVar and send the current value to SimConnect Clients
 void RegisterFloatSimVar(const std::string code, Client* client) {
 	std::vector<SimVar>* SimVars = &(client->SimVars);
@@ -328,15 +323,20 @@ void RegisterFloatSimVar(const std::string code, Client* client) {
 	HRESULT hr;
 
 	//duplicated SimVar, we do nothing
-	if(pdupSimVar) {
+	if ((pdupSimVar) && (newSimVar.clint != client)) {
 		newSimVar = *pdupSimVar;
+		SimVars->push_back(newSimVar);
+		if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
+			client->MaxClientDataDefinition = (SimVars->size() + StringSimVars->size());
+		}
+		return;
 	}
-	else {
-		newSimVar.Name = code;
-		newSimVar.ID = SimVars->size() + client->DataDefinitionIdSimVarsStart;
-		newSimVar.Offset = SimVars->size() * (sizeof(float));
-		newSimVar.Value = 0.0F;
-	}
+
+	newSimVar.Name = code;
+	newSimVar.ID = SimVars->size() + client->DataDefinitionIdSimVarsStart;
+	newSimVar.Offset = SimVars->size() * (sizeof(float));
+	newSimVar.Value = 0.0F;
+	newSimVar.clint = client;
 	SimVars->push_back(newSimVar);
 
 	if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
@@ -380,15 +380,20 @@ void RegisterStringSimVar(const std::string code, Client* client) {
 	HRESULT hr;
 
 	//duplicated SimVar, we do nothing
-	if(pdupStringSimVar) {
+	if ((pdupStringSimVar) && (newStringSimVar.clint != client)) {
 		newStringSimVar = *pdupStringSimVar;
+		StringSimVars->push_back(newStringSimVar);
+		if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
+			client->MaxClientDataDefinition = (SimVars->size() + StringSimVars->size());
+		}
+		return;
 	}
-	else {
-		newStringSimVar.Name = code;
-		newStringSimVar.ID = StringSimVars->size() + client->DataDefinitionIdStringVarsStart;
-		newStringSimVar.Offset = StringSimVars->size() * MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN;
-		newStringSimVar.Value.empty();
-	}
+
+	newStringSimVar.Name = code;
+	newStringSimVar.ID = StringSimVars->size() + client->DataDefinitionIdStringVarsStart;
+	newStringSimVar.Offset = StringSimVars->size() * MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN;
+	newStringSimVar.Value.empty();
+	newStringSimVar.clint = client;
 	StringSimVars->push_back(newStringSimVar);
 
 	if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
