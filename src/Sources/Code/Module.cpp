@@ -285,13 +285,28 @@ void WriteSimVar(SimVar& simVar, Client* client) {
 }
 
 //check whether SimVar has already registered in SimVar list
-bool IsDuplicatedFloatSimVar(const std::string code, Client* client) {
-	for (auto& simVar : client->SimVars) {
-		if (simVar.Name == code) {
-			return true;
+SimVar* IsDuplicatedFloatSimVar(const std::string code) {
+	for (auto& client : RegisteredClients) {
+		std::vector<SimVar>* SimVars = &(client->SimVars);
+		for (auto& sVar : *SimVars) {
+			if (sVar.Name == code) {
+				return &sVar;
+			}
 		}
 	}
-	return false;
+	return nullptr;
+}
+//check whether SimVar has already registered in StringSimVars list
+StringSimVar* IsDuplicatedStringSimVar(const std::string code) {
+	for (auto& client : RegisteredClients) {
+		std::vector<StringSimVar>* SimVars = &(client->StringSimVars);
+		for (auto& sVar : *SimVars) {
+			if (sVar.Name == code) {
+				return &sVar;
+			}
+		}
+	}
+	return nullptr;
 }
 
 //check whether SimVar has already registered in StringSimVars list
@@ -309,17 +324,19 @@ void RegisterFloatSimVar(const std::string code, Client* client) {
 	std::vector<SimVar>* SimVars = &(client->SimVars);
 	std::vector<StringSimVar>* StringSimVars = &(client->StringSimVars);
 	SimVar newSimVar;
+	SimVar* pdupSimVar = IsDuplicatedFloatSimVar(code);
 	HRESULT hr;
 
 	//duplicated SimVar, we do nothing
-	if(IsDuplicatedFloatSimVar(code, client)) {
-		return;
+	if(pdupSimVar) {
+		newSimVar = *pdupSimVar;
 	}
-
-	newSimVar.Name = code;
-	newSimVar.ID = SimVars->size() + client->DataDefinitionIdSimVarsStart;
-	newSimVar.Offset = SimVars->size() * (sizeof(float));
-	newSimVar.Value = 0.0F;
+	else {
+		newSimVar.Name = code;
+		newSimVar.ID = SimVars->size() + client->DataDefinitionIdSimVarsStart;
+		newSimVar.Offset = SimVars->size() * (sizeof(float));
+		newSimVar.Value = 0.0F;
+	}
 	SimVars->push_back(newSimVar);
 
 	if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
@@ -359,17 +376,19 @@ void RegisterStringSimVar(const std::string code, Client* client) {
 	std::vector<SimVar>* SimVars = &(client->SimVars);
 	std::vector<StringSimVar>* StringSimVars = &(client->StringSimVars);
 	StringSimVar newStringSimVar;
+	StringSimVar* pdupStringSimVar = IsDuplicatedStringSimVar(code);
 	HRESULT hr;
 
-	//duplicated StringSimVars, we do nothing
-	if(IsDuplicatedStringSimVar(code, client)) {
-		return;
+	//duplicated SimVar, we do nothing
+	if(pdupStringSimVar) {
+		newStringSimVar = *pdupStringSimVar;
 	}
-
-	newStringSimVar.Name = code;
-	newStringSimVar.ID = StringSimVars->size() + client->DataDefinitionIdStringVarsStart;
-	newStringSimVar.Offset = StringSimVars->size() * MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN;
-	newStringSimVar.Value.empty();
+	else {
+		newStringSimVar.Name = code;
+		newStringSimVar.ID = StringSimVars->size() + client->DataDefinitionIdStringVarsStart;
+		newStringSimVar.Offset = StringSimVars->size() * MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN;
+		newStringSimVar.Value.empty();
+	}
 	StringSimVars->push_back(newStringSimVar);
 
 	if (client->MaxClientDataDefinition < (SimVars->size() + StringSimVars->size())) {
