@@ -243,8 +243,7 @@ int ListLVars(Client* client) {
 	std::string buffer;
 	buffer.reserve(MOBIFLIGHT_MESSAGE_SIZE);
 
-	for (i = client->RollingLvarsListReadIndex; i < 5000; i++)
-	{
+	for (i = client->RollingLvarsListReadIndex; i < 10000; i++) {
 		const char * lVarName = get_name_of_named_variable(i);
 		if (lVarName == NULLPTR) {
 			break;
@@ -252,21 +251,17 @@ int ListLVars(Client* client) {
 		std::string str(lVarName);
 		// +1 means plus string seperator ';'
 		int buffer_size_next = buffer.size() + str.size() + 1;
-		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 10)
-		{
+		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 1) {
 			lVarList.push_back(str);
 			buffer += str;
 			buffer += ";";
-		}
-		else
-		{
+		} else {
 			break;
 		}
 	}
 	client->RollingLvarsListReadIndex = i;
 
-	if (buffer.size() > 0)
-	{
+	if (buffer.size() > 0) {
 		SendResponse(buffer.c_str(), client);
 #if 1//_DEBUG
 		std::cout << "MobiFlight[" << client->Name.c_str() << "]: Available LVar > " << buffer.c_str() << std::endl;
@@ -766,16 +761,12 @@ void CALLBACK MyDispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContex
 				if(client->RollingLvarsListReadIndex == 0) {
 					SendResponse("MF.LVars.List.Start", client);
 				}
-				if (ListLVars(client) > 0)
-				{
+				if (ListLVars(client) > 0) {
 					SendResponse("MF.LVars.List.Cont", client);
-				}
-				else
-				{
+				} else {
 					SendResponse("MF.LVars.List.End", client);
 				}
 				break;
-
 			}
 			else if (str == "MF.Version.Get")
 			{
