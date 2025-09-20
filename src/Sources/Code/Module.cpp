@@ -263,7 +263,7 @@ int ListLVars(Client* client) {
 
 	if (buffer.size() > 0) {
 		SendResponse(buffer.c_str(), client);
-#if 1//_DEBUG
+#if _DEBUG
 		std::cout << "MobiFlight[" << client->Name.c_str() << "]: Available LVar > " << buffer.c_str() << std::endl;
 #endif
 		return buffer.size();
