@@ -86,7 +86,6 @@ struct Client {
 	uint16_t MaxClientDataDefinition = 0;
 	//Runtime Rolling Client LVARS List Reading Index
 	uint16_t RollingLvarsListReadIndex = 0;
-	uint16_t MaxLvarsListReadIndex = 1000;
 };
 
 // Runtime Rolling CLient Data reading Index
@@ -239,22 +238,21 @@ void SendNewClientResponse(Client* client, Client* nc) {
 
 // List all available LVars for the currently loaded flight
 // and send them to the SimConnect client
-void ListLVars(Client* client) {
+int ListLVars(Client* client) {
 	int i;
 	std::string buffer;
 	buffer.reserve(MOBIFLIGHT_MESSAGE_SIZE);
 
-	for (i = client->RollingLvarsListReadIndex; i < 1000; i++)
+	for (i = client->RollingLvarsListReadIndex; i < 5000; i++)
 	{
 		const char * lVarName = get_name_of_named_variable(i);
 		if (lVarName == NULLPTR) {
-			client->MaxLvarsListReadIndex = i;
 			break;
 		}
 		std::string str(lVarName);
 		// +1 means plus string seperator ';'
 		int buffer_size_next = buffer.size() + str.size() + 1;
-		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 1)
+		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 10)
 		{
 			lVarList.push_back(str);
 			buffer += str;
@@ -273,6 +271,10 @@ void ListLVars(Client* client) {
 #if 1//_DEBUG
 		std::cout << "MobiFlight[" << client->Name.c_str() << "]: Available LVar > " << buffer.c_str() << std::endl;
 #endif
+		return buffer.size();
+	} else {
+		client->RollingLvarsListReadIndex = 0;
+		return 0;
 	}
 }
 
@@ -764,14 +766,13 @@ void CALLBACK MyDispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContex
 				if(client->RollingLvarsListReadIndex == 0) {
 					SendResponse("MF.LVars.List.Start", client);
 				}
-				ListLVars(client);
-				if(client->RollingLvarsListReadIndex < client->MaxLvarsListReadIndex) {
+				if (ListLVars(client) > 0)
+				{
 					SendResponse("MF.LVars.List.Cont", client);
-				} else {
+				}
+				else
+				{
 					SendResponse("MF.LVars.List.End", client);
-					//client->RollingLvarsListReadIndex = 0;
-					//client->MaxLvarsListReadIndex = 5000;
-					//lVarList.clear();
 				}
 				break;
 
