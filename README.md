@@ -24,7 +24,7 @@ The default channels for the MobiFlight client are auto created on startup. Each
 | Command (string)| Responses (string) | LVars value (float/string) |
 | ----------- | ----------- | ---------|
 | ```MF.Ping```| ```MF.Pong```|
-| ```MF.LVars.List``` | ```MF.LVars.List.Start``` <br> ```A32NX_AUTOPILOT_1_ACTIVE;A32NX_AUTOPILOT_HEADING;...``` <br>```MF.LVars.List.Cont``` <br>  ```A32NX_AUTOPILOT_HEADING_SELECTED;A32NX_AUTOPILOT_SPEED;...``` <br>```MF.LVars.List.Cont``` <br> ```A32NX_AUTOPILOT_HDG;A32NX_AUTOPILOT_SPD;...``` <br> ```MF.LVars.List.End```|
+| ```MF.LVars.List``` | ```MF.LVars.List.Start``` <br> ```I_FCU_EFIS1_ARPT;I_ECAM_COND;...``` <br>```MF.LVars.List.Cont``` <br><br>  ```I_ASP2_INT_REC;I_ASP4_VOICE;...``` <br>```MF.LVars.List.Cont``` <br><br> ```I_ASP2_PA_REC;I_ASP4_CAB_SEND;...``` <br> ```MF.LVars.List.End```|
 | ```MF.SimVars.Add.(A:GROUND ALTITUDE,Meters)``` || ```e.g. 1455.23 (float)``` |
 | ```MF.SimVars.AddString.(A:GPS WP NEXT ID,String)``` || ```e.g. EDDS (string)``` |
 | ```MF.SimVars.Clear``` |||
