@@ -248,7 +248,14 @@ int ListLVars(Client* client) {
 		if (lVarName == NULLPTR) {
 			break;
 		}
+
 		std::string str(lVarName);
+		// check aircraft related variable, prepend "a."
+		ENUM lVarEnum = get_aircraft_var_enum(lVarName);
+		if (lVarEnum >= 0)
+		{
+			str = "a." + str;
+		}
 		// +1 means plus string seperator ';'
 		int buffer_size_next = buffer.size() + str.size() + 1;
 		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 1) {
