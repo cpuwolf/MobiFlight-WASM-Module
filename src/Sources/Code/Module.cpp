@@ -94,6 +94,8 @@ uint16_t RollingDataReadIndex = 0;
 //RPN code execution for reading values in every frame
 struct ReadRPNCode {
 	std::string Code;
+	std::string PreCompiledCode;
+	bool ValidPreCompiledCode;
 	//RetType: 0:float 1:integer 2:string
 	int RetType;
 	std::vector<SimVar> SimVars;
@@ -326,6 +328,18 @@ ReadRPNCode* IsDuplicatedSimVar(const std::string code) {
 	return nullptr;
 }
 
+void PreCompileSimVar(ReadRPNCode &rpnCode)
+{
+	UINT32 CompiledSize;
+	const char *Compiled;
+	if ( 0 != gauge_calculator_code_precompile(&Compiled, &CompiledSize, rpnCode.Code.c_str())) {
+		rpnCode.PreCompiledCode = Compiled;
+		rpnCode.ValidPreCompiledCode = true;
+	} else {
+		rpnCode.ValidPreCompiledCode = false;
+	}
+}
+
 // Register a single Float-SimVar and send the current value to SimConnect Clients
 void RegisterFloatSimVar(const std::string code, Client* client) {
 	std::vector<SimVar>* SimVars = &(client->SimVars);
@@ -347,6 +361,8 @@ void RegisterFloatSimVar(const std::string code, Client* client) {
 		ReadRPNCode rpnCode;
 		rpnCode.Code = code;
 		rpnCode.RetType = 0;//hardcoded type id
+		rpnCode.ValidPreCompiledCode = false;
+		PreCompileSimVar(rpnCode);
 		rpnCode.SimVars.push_back(newSimVar);
 		RPNCodelist.push_back(rpnCode);
 	}
@@ -404,6 +420,7 @@ void RegisterStringSimVar(const std::string code, Client* client) {
 		ReadRPNCode rpnCode;
 		rpnCode.Code = code;
 		rpnCode.RetType = 2;//hardcoded type id
+		rpnCode.ValidPreCompiledCode = false;
 		rpnCode.StringSimVars.push_back(newStringSimVar);
 		RPNCodelist.push_back(rpnCode);
 	}
@@ -491,7 +508,11 @@ void ClearSimVars(Client* client) {
 void ReadSimVarFloat(ReadRPNCode &rpn) {
 	FLOAT64 floatVal = 0;
 
-	execute_calculator_code(std::string(rpn.Code).c_str(), &floatVal, nullptr, nullptr);
+	if(rpn.ValidPreCompiledCode) {
+		execute_calculator_code(rpn.PreCompiledCode.c_str(), &floatVal, nullptr, nullptr);
+	} else {
+		execute_calculator_code(rpn.Code.c_str(), &floatVal, nullptr, nullptr);
+	}
 
 	for (auto& simVar : rpn.SimVars) {
 		if ((simVar.Value > floatVal) && (simVar.Value - floatVal < 0.00001F)) {
