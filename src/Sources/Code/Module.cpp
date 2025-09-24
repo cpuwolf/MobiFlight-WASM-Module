@@ -491,7 +491,7 @@ void ClearSimVars(Client* client) {
 void ReadSimVarFloat(ReadRPNCode &rpn) {
 	FLOAT64 floatVal = 0;
 
-	execute_calculator_code(std::string(rpn.Code).c_str(), &floatVal, nullptr, nullptr);
+	execute_calculator_code(rpn.Code.c_str(), &floatVal, nullptr, nullptr);
 
 	for (auto& simVar : rpn.SimVars) {
 		if ((simVar.Value > floatVal) && (simVar.Value - floatVal < 0.00001F)) {
@@ -514,7 +514,7 @@ void ReadSimVarFloat(ReadRPNCode &rpn) {
 void ReadSimVarString(ReadRPNCode &rpn) {
 	PCSTRINGZ charVal = nullptr;
 
-	execute_calculator_code(std::string(rpn.Code).c_str(), nullptr, nullptr, &charVal);
+	execute_calculator_code(rpn.Code.c_str(), nullptr, nullptr, &charVal);
 	std::string stringVal = std::string(charVal, strnlen(charVal, MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN));
 
 	for (auto& simVar : rpn.StringSimVars) {
