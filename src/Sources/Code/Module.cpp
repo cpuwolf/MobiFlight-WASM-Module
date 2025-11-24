@@ -84,6 +84,9 @@ struct Client {
 	// This is an optimization to be able to re-use already defined data definition IDs & request IDs
 	// after resetting registered SimVars
 	uint16_t MaxClientDataDefinition = 0;
+
+	//Runtime Rolling Client LVARS List Reading Index
+	uint16_t RollingLvarsListReadIndex = 0;
 };
 
 // Runtime Rolling Client Data reading Index
@@ -244,22 +247,38 @@ void SendNewClientResponse(Client* client, Client* nc) {
 
 // List all available LVars for the currently loaded flight
 // and send them to the SimConnect client
-void ListLVars(Client* client) {
-	lVarList.clear();
+int ListLVars(Client* client) {
+	int i;
+	std::string buffer;
+	buffer.reserve(MOBIFLIGHT_MESSAGE_SIZE);
 
-	for (int i = 0; i != 1000; i++) {
+	for (i = client->RollingLvarsListReadIndex; i < 10000; i++) {
 		const char * lVarName = get_name_of_named_variable(i);
-		if (lVarName == NULLPTR) break;
-		lVarList.push_back(std::string(lVarName));
+		if (lVarName == NULLPTR) {
+			break;
+		}
+		std::string str(lVarName);
+		// +1 means plus string seperator ';'
+		int buffer_size_next = buffer.size() + str.size() + 1;
+		if (buffer_size_next < MOBIFLIGHT_MESSAGE_SIZE - 1) {
+			lVarList.push_back(str);
+			buffer += str;
+			buffer += ";";
+		} else {
+			break;
+		}
 	}
+	client->RollingLvarsListReadIndex = i;
 
-	std::sort(lVarList.begin(), lVarList.end());
-
-	for (const auto& lVar : lVarList) {
-		SendResponse(lVar.c_str(), client);
+	if (buffer.size() > 0) {
+		SendResponse(buffer.c_str(), client);
 #if _DEBUG
-		std::cout << "MobiFlight[" << client->Name.c_str() << "]: Available LVar > " << lVar.c_str() << std::endl;
+		std::cout << "MobiFlight[" << client->Name.c_str() << "]: Available LVar > " << buffer.c_str() << std::endl;
 #endif
+		return buffer.size();
+	} else {
+		client->RollingLvarsListReadIndex = 0;
+		return 0;
 	}
 }
 
@@ -481,7 +500,7 @@ void ClearSimVars(Client* client) {
 void ReadSimVarFloat(ReadRPNCode &rpn) {
 	FLOAT64 floatVal = 0;
 
-	execute_calculator_code(std::string(rpn.Code).c_str(), &floatVal, nullptr, nullptr);
+	execute_calculator_code(rpn.Code.c_str(), &floatVal, nullptr, nullptr);
 
 	for (auto& simVar : rpn.SimVars) {
 		if (std::abs(simVar.Value - floatVal) < 0.00001F)
@@ -504,6 +523,7 @@ void ReadSimVarString(ReadRPNCode &rpn) {
 	PCSTRINGZ charVal = nullptr;
 
 	execute_calculator_code(std::string(rpn.Code).c_str(), nullptr, nullptr, &charVal);
+
 	std::string stringVal = std::string(charVal, strnlen(charVal, MOBIFLIGHT_STRING_SIMVAR_VALUE_MAX_LEN));
 
 	for (auto& simVar : rpn.StringSimVars) {
@@ -699,6 +719,7 @@ extern "C" MSFS_CALLBACK void module_init(void)
 	Client* client = RegisterNewClient(std::string(MOBIFLIGHT_CLIENT_DATA_NAME));
 	RegisterEvents();
 	ListLVars(client);
+	client->RollingLvarsListReadIndex = 0;
 
 	std::cout << "MobiFlight: Max Message size is " << MOBIFLIGHT_MESSAGE_SIZE << std::endl;
 	std::cout << "MobiFlight: Module Init Complete.Version: " << version << std::endl;
@@ -746,11 +767,15 @@ void CALLBACK MyDispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContex
 
 			}
 			else if (str == "MF.LVars.List") {
-				SendResponse("MF.LVars.List.Start", client);
-				ListLVars(client);
-				SendResponse("MF.LVars.List.End", client);
+				if(client->RollingLvarsListReadIndex == 0) {
+					SendResponse("MF.LVars.List.Start", client);
+				}
+				if (ListLVars(client) > 0) {
+					SendResponse("MF.LVars.List.Cont", client);
+				} else {
+					SendResponse("MF.LVars.List.End", client);
+				}
 				break;
-
 			}
 			else if (str == "MF.Version.Get")
 			{
