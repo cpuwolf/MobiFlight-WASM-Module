@@ -1,0 +1,83 @@
+name: Build MSVC MSFS WASM Project
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: ./src/Sources/Code/
+  BUILD_CONFIGURATION: Release
+  MSFS_SDK: C:\MSFS SDK\
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Download MSFS SDK
+      shell: powershell
+      run: |
+          $url = "${{ secrets.MSFS_SDK_MSI_URL }}"
+          Invoke-WebRequest -UserAgent curl/8.7.1 -Uri $url -MaximumRedirection 5  -OutFile "MSFS_SDK_Core_Installer_0.24.5.msi"
+          Start-Process msiexec.exe -ArgumentList "/i MSFS_SDK_Core_Installer_0.24.5.msi ADDLOCAL=ALL /quiet /qn /norestart" -Wait
+          dir "C:\MSFS SDK"
+      
+    - name: Set SDK Environment Variable
+      run: echo "MSFS_SDK=C:\MSFS SDK\" >> $GITHUB_ENV
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v3
+      with:
+        msbuild-architecture: MSFS
+
+    - name: Build WASM Project
+      working-directory: ${{env.SOLUTION_FILE_PATH}}
+      run: |
+        msbuild MobiFlightWasmModule.sln /p:Configuration=Release /p:Platform=MSFS
+      shell: cmd
+
+    - name: Download MSFSLayoutGenerator
+      shell: powershell
+      run: |
+          $url = "https://github.com/HughesMDflyer4/MSFSLayoutGenerator/releases/download/v1.1.2/MSFSLayoutGenerator.exe"
+          Invoke-WebRequest -UserAgent curl/8.7.1 -Uri $url -MaximumRedirection 5  -OutFile "MSFSLayoutGenerator.exe"
+          Start-Process MSFSLayoutGenerator.exe -ArgumentList " ./src/PackagesExport/mobiflight-event-module/layout.json" -Wait
+          git diff --exit-code
+          $LASTEXITCODE = 0
+
+    - name: Upload WASM Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wasm-build-artifacts
+        path: |
+          ./src/PackagesExport/
+
+  mf_wasm_release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+          pattern: wasm-build-*
+          merge-multiple: true
+    - name: Archive production artifacts
+      run: zip -r mobiflight-event-module.zip mobiflight-event-module       
+    - name: Upload to Release
+      continue-on-error: true
+      uses: meeDamian/github-release@2.0
+      with:
+        tag: ${{ github.ref_name }}
+        draft: true
+        allow_override: true
+        gzip: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+        files: >
+          mobiflight-event-module.zip         
