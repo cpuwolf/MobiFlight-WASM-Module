@@ -25,3 +25,5 @@ Thumbs.db
 *.wmv
 
 /mobiflight-logo-wasm.psd
+src/PackagesExport/mobiflight-event-module/modules/events.txt
+src/PackagesExport/mobiflight-event-module/modules/MobiFlightWasmModule.wasm
