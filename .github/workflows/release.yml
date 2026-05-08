@@ -3,6 +3,8 @@ name: Build MSVC MSFS WASM Project
 on:
   push:
     branches: [ "*" ]
+    tags:
+      - '*'
   pull_request:
     branches: [ "*" ]
 
@@ -19,6 +21,24 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: update version string
+      if: github.ref_type == 'tag'
+      run: |
+        pushd src && python autoversion.py "${{ github.ref_name }}" && popd
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "file version ${{ github.ref_name }} updated by Github Actions"
+        git push --set-upstream origin main
+      shell: cmd
 
     - name: Download MSFS SDK
       shell: powershell
