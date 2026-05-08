@@ -74,6 +74,7 @@ jobs:
           Start-Process MSFSLayoutGenerator.exe -ArgumentList " ./src/PackagesExport/mobiflight-event-module/layout.json" -Wait
           git diff --exit-code
           $LASTEXITCODE = 0
+          tree /F src/PackagesExport/
 
     - name: Upload WASM Artifacts
       uses: actions/upload-artifact@v7
