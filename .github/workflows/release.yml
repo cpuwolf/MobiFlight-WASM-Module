@@ -30,6 +30,20 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Get Branch Name (Windows/PowerShell)
+      if: github.ref_type == 'tag'
+      shell: powershell
+      run: |
+        # Get the branch name from the tag
+        $tag = "${{ github.ref_name }}"
+        $branch = git branch -r --contains $tag | Select-Object -First 1
+        
+        if ($branch) {
+            # Clean the string (remove 'origin/' and whitespace)
+            $cleanBranch = $branch.Replace("origin/", "").Trim()
+            echo "WORK_BRANCH=$cleanBranch" >> $env:GITHUB_ENV
+        }
+
     - name: update version string
       if: github.ref_type == 'tag'
       run: |
