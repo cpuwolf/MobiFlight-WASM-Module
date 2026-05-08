@@ -11,7 +11,7 @@
 #include "Module.h"
 
 HANDLE g_hSimConnect;
-const char* version = "1.0.1";
+const char* version = "1000.0.1";
 
 const char* ClientName = "MobiFlightWasmModule";
 const char* MobiFlightEventPrefix = "MobiFlight.";
