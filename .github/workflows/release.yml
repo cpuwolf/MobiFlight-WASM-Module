@@ -3,6 +3,8 @@ name: Build MSVC MSFS WASM Project
 on:
   push:
     branches: [ "*" ]
+    tags:
+      - '*'
   pull_request:
     branches: [ "*" ]
 
@@ -11,6 +13,7 @@ env:
   SOLUTION_FILE_PATH: ./src/Sources/Code/
   BUILD_CONFIGURATION: Release
   MSFS_SDK: C:\MSFS SDK\
+  WORK_BRANCH: main
 
 jobs:
   build:
@@ -19,6 +22,41 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Get Branch Name (Windows/PowerShell)
+      if: github.ref_type == 'tag'
+      shell: powershell
+      run: |
+        # Get the branch name from the tag
+        $tag = "${{ github.ref_name }}"
+        $branch = git branch -r --contains $tag | Select-Object -First 1
+        
+        if ($branch) {
+            # Clean the string (remove 'origin/' and whitespace)
+            $cleanBranch = $branch.Replace("origin/", "").Trim()
+            echo "WORK_BRANCH=$cleanBranch" >> $env:GITHUB_ENV
+        }
+
+    - name: update version string
+      if: github.ref_type == 'tag'
+      run: |
+        git fetch origin ${{ env.WORK_BRANCH }}
+        git branch -a
+        git checkout ${{ env.WORK_BRANCH }}
+        pushd src && python autoversion.py "${{ github.ref_name }}" && popd
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "file version ${{ github.ref_name }} updated by Github Actions"
+        git push --set-upstream origin ${{ env.WORK_BRANCH }}
+      shell: cmd
 
     - name: Download MSFS SDK
       shell: powershell
@@ -50,13 +88,14 @@ jobs:
           Start-Process MSFSLayoutGenerator.exe -ArgumentList " ./src/PackagesExport/mobiflight-event-module/layout.json" -Wait
           git diff --exit-code
           $LASTEXITCODE = 0
+          tree /F src/PackagesExport/
 
     - name: Upload WASM Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wasm-build-artifacts
-        path: |
-          ./src/PackagesExport/
+        include-hidden-files: true
+        path: src/PackagesExport/
 
   mf_wasm_release:
     needs: build
